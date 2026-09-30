@@ -47,3 +47,49 @@ order by CASE
         ELSE EXTRACT(DOW FROM s.sale_date)
     END,
     seller --сортируем по продавцу порядковому дню недели заменяя порядковый номер 0 на 7 чтобы воскресенье было седьмым днем 
+
+	select 
+case 
+	when c.age between 16 and 25 then '16-25' --данный запрос делдит покупателей по возрастным группам и считает сколько покупателей в каждой грппе
+	when c.age between 26 and 40 then '26-40'
+	when c.age > 40 then '40+'
+end as age_category,
+	count(c.age) as age_count
+from customers as c 
+group by age_category 
+order by age_category
+
+select --данный запррос показывает сколько уникальных покупателей какую выручку принесли в каждом месяце 
+	to_char(s.sale_date, 'YYYY-MM') as selling_month,
+	count(distinct(c.customer_id)) as total_customers,
+	FLOOR(sum(s.quantity * p.price )) as income
+from sales as s
+join products as p 
+	on s.product_id = p.product_id
+join customers as c 
+	on s.customer_id = c.customer_id
+group by selling_month 
+order by selling_month
+
+with table_1 as (select s.sales_id, --данный запрос показывает покупателей первая покупка которых была совершена в момент проведения акции
+					    s.customer_id,
+					    s.sales_person_id,
+					    s.sale_date,
+					    p.price,
+					    row_number() over (partition by s.customer_id order by s.sale_date, s.sales_id
+					    ) as row_number
+					from sales as s
+					join products as p
+					    on s.product_id = p.product_id)
+select
+    concat(c.first_name, ' ', c.last_name) as customer,
+    t.sale_date as sale_date,
+    concat(e.first_name, ' ', e.last_name) as seller
+from table_1 as t 
+join customers as c
+    on t.customer_id = c.customer_id
+join employees as e
+    on t.sales_person_id = e.employee_id
+where t.row_number = 1
+  and t.price = 0
+order by c.customer_id
